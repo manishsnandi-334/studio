@@ -1,7 +1,8 @@
+
 "use client";
 
 import * as React from "react";
-import { PlusCircle, Filter, Edit3, Trash2, MoreHorizontal } from "lucide-react";
+import { PlusCircle, Filter, Edit3, Trash2, MoreHorizontal, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,13 +15,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { MOCK_WORK_ORDERS, WORK_ORDER_STATUSES, type WorkOrderStatus } from '@/lib/mock-data';
 
-// Mock state for work orders - in a real app, this would come from a state management solution or API
 type WorkOrder = typeof MOCK_WORK_ORDERS[0];
 
 export default function WorkOrdersPage() {
   const [workOrders, setWorkOrders] = React.useState<WorkOrder[]>(MOCK_WORK_ORDERS);
-  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = React.useState(false);
   const [editingWorkOrder, setEditingWorkOrder] = React.useState<WorkOrder | null>(null);
+
+  const [isViewDetailsDialogOpen, setIsViewDetailsDialogOpen] = React.useState(false);
+  const [viewingWorkOrder, setViewingWorkOrder] = React.useState<WorkOrder | null>(null);
 
   // Form state for new/edit work order
   const [productType, setProductType] = React.useState('');
@@ -38,7 +41,7 @@ export default function WorkOrdersPage() {
     setDetails('');
     setStatus('New');
     setAssignedTo('');
-    setIsDialogOpen(true);
+    setIsFormDialogOpen(true);
   };
 
   const handleEditWorkOrder = (order: WorkOrder) => {
@@ -48,16 +51,20 @@ export default function WorkOrdersPage() {
     setDetails(order.details);
     setStatus(order.status);
     setAssignedTo(order.assignedTo);
-    setIsDialogOpen(true);
+    setIsFormDialogOpen(true);
   }
 
   const handleDeleteWorkOrder = (orderId: string) => {
     setWorkOrders(prev => prev.filter(wo => wo.id !== orderId));
   }
 
+  const handleViewDetails = (order: WorkOrder) => {
+    setViewingWorkOrder(order);
+    setIsViewDetailsDialogOpen(true);
+  };
+
   const handleSubmitWorkOrder = () => {
     if (!productType || !quantity) {
-      // Basic validation
       alert("Product Type and Quantity are required.");
       return;
     }
@@ -68,17 +75,15 @@ export default function WorkOrdersPage() {
       details,
       status,
       assignedTo,
-      estimatedCompletion: 'N/A', // Simplified for mock
+      estimatedCompletion: editingWorkOrder?.estimatedCompletion || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Mock completion: 7 days from now for new
     };
 
     if (editingWorkOrder) {
-      // Update existing work order
       setWorkOrders(prev => prev.map(wo => wo.id === editingWorkOrder.id ? { ...wo, ...newWorkOrderData } : wo));
     } else {
-      // Add new work order
-      setWorkOrders(prev => [{ id: `WO-${Date.now().toString().slice(-3)}`, ...newWorkOrderData }, ...prev]);
+      setWorkOrders(prev => [{ id: `WO-${Date.now().toString().slice(-4)}`, ...newWorkOrderData }, ...prev]);
     }
-    setIsDialogOpen(false);
+    setIsFormDialogOpen(false);
   };
   
   const getStatusBadgeVariant = (status: WorkOrderStatus) => {
@@ -86,7 +91,7 @@ export default function WorkOrdersPage() {
       case 'New': return 'outline';
       case 'In Progress': return 'default';
       case 'Quality Check': return 'secondary';
-      case 'Done': return 'default'; // Consider a success variant
+      case 'Done': return 'default'; 
       case 'Cancelled': return 'destructive';
       default: return 'outline';
     }
@@ -130,7 +135,13 @@ export default function WorkOrdersPage() {
                   <TableCell>{order.productType}</TableCell>
                   <TableCell>{order.quantity.toLocaleString()}</TableCell>
                   <TableCell>
-                    <Badge variant={getStatusBadgeVariant(order.status)} className={order.status === 'Done' ? 'bg-green-500 text-white hover:bg-green-600' : order.status === 'In Progress' ? 'bg-blue-500 text-white hover:bg-blue-600' : ''}>
+                    <Badge 
+                      variant={getStatusBadgeVariant(order.status)} 
+                      className={
+                        order.status === 'Done' ? 'bg-green-500 text-white hover:bg-green-600' : 
+                        order.status === 'In Progress' ? 'bg-blue-500 text-white hover:bg-blue-600' : ''
+                      }
+                    >
                       {order.status}
                     </Badge>
                   </TableCell>
@@ -146,14 +157,14 @@ export default function WorkOrdersPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleViewDetails(order)}>
+                           <Eye className="mr-2 h-4 w-4" /> View Details
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleEditWorkOrder(order)}>
                           <Edit3 className="mr-2 h-4 w-4" /> Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => alert(`Viewing details for ${order.id}`)}>
-                           View Details
-                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteWorkOrder(order.id)}>
+                        <DropdownMenuItem className="text-red-600 hover:!text-red-600 hover:!bg-red-100 dark:hover:!bg-red-900/50" onClick={() => handleDeleteWorkOrder(order.id)}>
                           <Trash2 className="mr-2 h-4 w-4" /> Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -166,7 +177,8 @@ export default function WorkOrdersPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      {/* Form Dialog for Create/Edit Work Order */}
+      <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingWorkOrder ? 'Edit' : 'Create New'} Work Order</DialogTitle>
@@ -204,11 +216,62 @@ export default function WorkOrdersPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => setIsFormDialogOpen(false)}>Cancel</Button>
             <Button type="submit" onClick={handleSubmitWorkOrder}>{editingWorkOrder ? 'Save Changes' : 'Create Order'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* View Details Dialog */}
+      {viewingWorkOrder && (
+        <Dialog open={isViewDetailsDialogOpen} onOpenChange={setIsViewDetailsDialogOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Work Order Details: {viewingWorkOrder.id}</DialogTitle>
+              <DialogDescription>
+                Complete information for the selected work order.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4 text-sm">
+              <div className="grid grid-cols-3 items-center gap-x-4 gap-y-2">
+                <Label className="text-right font-semibold">Order ID:</Label>
+                <span className="col-span-2">{viewingWorkOrder.id}</span>
+
+                <Label className="text-right font-semibold">Product Type:</Label>
+                <span className="col-span-2">{viewingWorkOrder.productType}</span>
+
+                <Label className="text-right font-semibold">Quantity:</Label>
+                <span className="col-span-2">{viewingWorkOrder.quantity.toLocaleString()} units</span>
+                
+                <Label className="text-right font-semibold">Status:</Label>
+                <span className="col-span-2">
+                    <Badge 
+                      variant={getStatusBadgeVariant(viewingWorkOrder.status)} 
+                      className={
+                        viewingWorkOrder.status === 'Done' ? 'bg-green-500 text-white' : 
+                        viewingWorkOrder.status === 'In Progress' ? 'bg-blue-500 text-white' : ''
+                      }
+                    >
+                      {viewingWorkOrder.status}
+                    </Badge>
+                </span>
+
+                <Label className="text-right font-semibold">Assigned To:</Label>
+                <span className="col-span-2">{viewingWorkOrder.assignedTo}</span>
+
+                <Label className="text-right font-semibold">Est. Completion:</Label>
+                <span className="col-span-2">{viewingWorkOrder.estimatedCompletion}</span>
+                
+                <Label className="text-right font-semibold self-start pt-1">Details/Notes:</Label>
+                <p className="col-span-2 bg-muted/50 p-2 rounded-md whitespace-pre-wrap">{viewingWorkOrder.details || "N/A"}</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsViewDetailsDialogOpen(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
