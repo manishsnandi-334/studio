@@ -1,19 +1,23 @@
 
-import { TrendingUp, Percent, Download, Package } from 'lucide-react';
+"use client";
+
+import { useRef } from 'react';
+import { TrendingUp, Percent, Download, Package, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"; // Keep for TrendForecasterForm
 import TrendForecasterForm from '@/components/analytics/trend-forecaster-form';
-import { MOCK_KPIS, MOCK_HOURLY_OUTPUT } from '@/lib/mock-data'; // Use MOCK_HOURLY_OUTPUT for dailyOutputData
+import { MOCK_KPIS, MOCK_HOURLY_OUTPUT } from '@/lib/mock-data';
 import { DataCard } from '@/components/ui/data-card';
 import AnalyticsCharts from '@/components/analytics/analytics-charts';
 import type { ChartConfig } from '@/components/ui/chart';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import { useToast } from "@/hooks/use-toast";
 
 
-// Prepare data for charts and cards here, to be passed to the client component
 const dailyOutputData = MOCK_HOURLY_OUTPUT.map(item => ({
-  date: item.time.split('-')[0].slice(0,3), // Using time slot for now, could be actual dates
+  date: item.time.split('-')[0].slice(0,3),
   output: item.totalOutput
-})).slice(0, 6); // Take first 6 for a weekly view like Mon-Sat
+})).slice(0, 6);
 
 const kpiChartData = [
   { name: "On-Time Delivery", value: MOCK_KPIS.onTimeDelivery, fill: "hsl(var(--chart-1))" },
@@ -32,9 +36,63 @@ const chartConfig = {
 
 
 export default function AnalyticsPage() {
+  const { toast } = useToast();
+  const [isDownloading, setIsDownloading] = React.useState(false);
+  const reportContentRef = useRef<HTMLDivElement>(null);
+
   const averageDailyOutputFromChart = Math.round(
     dailyOutputData.reduce((sum, item) => sum + item.output, 0) / dailyOutputData.length
   );
+
+  const handleDownloadPdf = async () => {
+    if (!reportContentRef.current) {
+      toast({
+        title: "Error",
+        description: "Could not find content to download.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsDownloading(true);
+    toast({
+      title: "Processing Report",
+      description: "Your PDF report is being generated...",
+    });
+
+    try {
+      const canvas = await html2canvas(reportContentRef.current, {
+        scale: 2, // Improve quality
+        useCORS: true, // For external images if any
+        logging: false,
+      });
+      const imgData = canvas.toDataURL('image/png');
+      
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [canvas.width, canvas.height] // Use canvas dimensions for PDF page size
+      });
+
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.save('analytics-report.pdf');
+      
+      toast({
+        title: "Report Downloaded",
+        description: "Analytics report PDF has been saved.",
+        variant: "default",
+      });
+
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "Download Failed",
+        description: "Could not generate the PDF report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -43,39 +101,49 @@ export default function AnalyticsPage() {
           <h1 className="text-2xl font-semibold">Insights & Analytics Panel</h1>
           <p className="text-muted-foreground">Monitor Key Performance Indicators and forecast future trends.</p>
         </div>
-        <Button variant="outline">
-          <Download className="mr-2 h-4 w-4" /> Download Reports (PDF/Excel)
+        <Button variant="outline" onClick={handleDownloadPdf} disabled={isDownloading}>
+          {isDownloading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Downloading...
+            </>
+          ) : (
+            <>
+              <Download className="mr-2 h-4 w-4" /> Download Reports (PDF)
+            </>
+          )}
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <DataCard
-          title="On-Time Delivery"
-          value={`${MOCK_KPIS.onTimeDelivery}%`}
-          icon={TrendingUp}
-          description={MOCK_KPIS.onTimeDelivery > 90 ? "Excellent performance" : "Needs improvement"}
+      <div ref={reportContentRef} className="flex flex-col gap-8"> {/* Content to be captured */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <DataCard
+            title="On-Time Delivery"
+            value={`${MOCK_KPIS.onTimeDelivery}%`}
+            icon={TrendingUp}
+            description={MOCK_KPIS.onTimeDelivery > 90 ? "Excellent performance" : "Needs improvement"}
+          />
+          <DataCard
+            title="Wastage Rate"
+            value={`${MOCK_KPIS.wastageRate}%`}
+            icon={Percent}
+            description={MOCK_KPIS.wastageRate < 5 ? "Within acceptable limits" : "High wastage, investigate"}
+          />
+          <DataCard
+            title="Daily Output (Avg)"
+            value={`${averageDailyOutputFromChart.toLocaleString()} units`}
+            icon={Package}
+            description={`Target: ${(Math.round(averageDailyOutputFromChart * 1.1)).toLocaleString()} units`}
+          />
+        </div>
+        
+        <AnalyticsCharts 
+          dailyOutputData={dailyOutputData}
+          kpiChartData={kpiChartData}
+          chartConfig={chartConfig}
         />
-        <DataCard
-          title="Wastage Rate"
-          value={`${MOCK_KPIS.wastageRate}%`}
-          icon={Percent}
-          description={MOCK_KPIS.wastageRate < 5 ? "Within acceptable limits" : "High wastage, investigate"}
-        />
-        <DataCard
-          title="Daily Output (Avg)"
-          value={`${averageDailyOutputFromChart.toLocaleString()} units`}
-          icon={Package}
-          description={`Target: ${(Math.round(averageDailyOutputFromChart * 1.1)).toLocaleString()} units`}
-        />
-      </div>
-      
-      <AnalyticsCharts 
-        dailyOutputData={dailyOutputData}
-        kpiChartData={kpiChartData}
-        chartConfig={chartConfig}
-      />
 
-      <TrendForecasterForm />
+        <TrendForecasterForm />
+      </div>
     </div>
   );
 }
