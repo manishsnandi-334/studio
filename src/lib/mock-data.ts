@@ -54,12 +54,42 @@ export const MOCK_SCRAP_WASTE = [
   { id: 'SW003', date: '2024-07-29', item: 'Off-spec Herbal Extract', quantity: 2, unit: 'Kg', reason: 'Expired batch' },
 ];
 
-export const MOCK_MACHINES = [
-  { id: 'MC001', name: 'Soap Mixer Alpha', status: 'Running', currentTask: 'Mixing Batch #102', uptimePercent: 92, lastMaintenance: '2024-07-01' },
-  { id: 'MC002', name: 'Shampoo Filler Z2', status: 'Idle', currentTask: '-', uptimePercent: 85, lastMaintenance: '2024-06-15' },
-  { id: 'MC003', name: 'Packaging Conveyor P1', status: 'Downtime', currentTask: 'Maintenance', uptimePercent: 70, lastMaintenance: '2024-07-29' },
-  { id: 'MC004', name: 'Soap Cutting Unit SlicerX', status: 'Running', currentTask: 'Cutting Batch #103', uptimePercent: 95, lastMaintenance: '2024-07-10' },
+export interface DowntimeLog {
+  id: string;
+  reason: string;
+  notes?: string;
+  startTime: string;
+  endTime?: string;
+}
+export interface Machine {
+  id: string;
+  name: string;
+  status: 'Running' | 'Idle' | 'Downtime';
+  currentTask: string;
+  uptimePercent: number;
+  lastMaintenance: string;
+  downtimeLogs?: DowntimeLog[];
+}
+
+export const MOCK_MACHINES: Machine[] = [
+  { id: 'MC001', name: 'Soap Mixer Alpha', status: 'Running', currentTask: 'Mixing Batch #102', uptimePercent: 92, lastMaintenance: '2024-07-01', downtimeLogs: [] },
+  { id: 'MC002', name: 'Shampoo Filler Z2', status: 'Idle', currentTask: '-', uptimePercent: 85, lastMaintenance: '2024-06-15', downtimeLogs: [] },
+  { id: 'MC003', name: 'Packaging Conveyor P1', status: 'Downtime', currentTask: 'Maintenance', uptimePercent: 70, lastMaintenance: '2024-07-29', downtimeLogs: [{id: 'DT001', reason: 'Belt Jam', notes: 'Belt was stuck, cleared now.', startTime: '2024-07-29 10:00'}] },
+  { id: 'MC004', name: 'Soap Cutting Unit SlicerX', status: 'Running', currentTask: 'Cutting Batch #103', uptimePercent: 95, lastMaintenance: '2024-07-10', downtimeLogs: [] },
 ];
+
+export const DOWNTIME_REASONS = [
+  "Mechanical Failure",
+  "Electrical Issue",
+  "Material Shortage",
+  "Operator Error",
+  "Scheduled Maintenance",
+  "Unscheduled Maintenance",
+  "Quality Stop",
+  "Changeover",
+  "Other",
+];
+
 
 export const MOCK_LABOR = [
   { id: 'LB001', name: 'Sunita Sharma', shift: 'Morning', assignedTask: 'Soap Cutting', productivity: '180 units/hr', status: 'Active' },

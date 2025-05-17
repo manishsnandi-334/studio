@@ -2,7 +2,8 @@
 "use client";
 
 import * as React from 'react';
-import { PackageSearch, PackageCheck, ArchiveX, AlertTriangle, Eye } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { PackageSearch, PackageCheck, ArchiveX, AlertTriangle, Eye, QrCode, VideoOff, ScanLine } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,12 +13,16 @@ import { MOCK_RAW_MATERIALS, MOCK_FINISHED_GOODS, MOCK_SCRAP_WASTE, type WorkOrd
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useToast } from "@/hooks/use-toast";
+// import { Html5QrcodeScanner } from 'html5-qrcode'; // Import if full QR scanning is implemented
 
 type RawMaterial = typeof MOCK_RAW_MATERIALS[0];
 type FinishedGood = typeof MOCK_FINISHED_GOODS[0];
 type ScrapWaste = typeof MOCK_SCRAP_WASTE[0];
 
 export default function InventoryPage() {
+  const { toast } = useToast();
   const [selectedRawMaterial, setSelectedRawMaterial] = React.useState<RawMaterial | null>(null);
   const [isRawMaterialDialogOpen, setIsRawMaterialDialogOpen] = React.useState(false);
 
@@ -26,6 +31,72 @@ export default function InventoryPage() {
 
   const [selectedScrapWaste, setSelectedScrapWaste] = React.useState<ScrapWaste | null>(null);
   const [isScrapWasteDialogOpen, setIsScrapWasteDialogOpen] = React.useState(false);
+
+  const [isQrScannerOpen, setIsQrScannerOpen] = React.useState(false);
+  const [qrScannerMode, setQrScannerMode] = React.useState<'entry' | 'dispatch' | null>(null);
+  const [hasCameraPermission, setHasCameraPermission] = React.useState<boolean | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  // const qrScannerRef = useRef<Html5QrcodeScanner | null>(null); // For full QR scanner
+
+  useEffect(() => {
+    if (isQrScannerOpen) {
+      const getCameraPermission = async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+          setHasCameraPermission(true);
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+          // Placeholder: Initialize actual QR scanner here if using a library
+          // For example, if using html5-qrcode:
+          // if (!qrScannerRef.current) {
+          //   const scanner = new Html5QrcodeScanner(
+          //     "qr-reader", 
+          //     { fps: 10, qrbox: {width: 250, height: 250} }, 
+          //     false
+          //   );
+          //   scanner.render(onScanSuccess, onScanFailure);
+          //   qrScannerRef.current = scanner;
+          // }
+        } catch (error) {
+          console.error('Error accessing camera:', error);
+          setHasCameraPermission(false);
+          toast({
+            variant: 'destructive',
+            title: 'Camera Access Denied',
+            description: 'Please enable camera permissions in your browser settings to use QR scanning.',
+          });
+        }
+      };
+      getCameraPermission();
+    } else {
+      // Cleanup camera stream when dialog closes
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
+      // if (qrScannerRef.current) {
+      //   qrScannerRef.current.clear().catch(error => console.error("Failed to clear QR scanner", error));
+      //   qrScannerRef.current = null;
+      // }
+      setHasCameraPermission(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isQrScannerOpen]);
+
+  // const onScanSuccess = (decodedText: string, decodedResult: any) => {
+  //   console.log(`Code matched = ${decodedText}`, decodedResult);
+  //   toast({ title: "QR Code Scanned!", description: `Data: ${decodedText} (Mode: ${qrScannerMode})`});
+  //   // Here you would handle the scanned data, e.g., find item, prefill form
+  //   setIsQrScannerOpen(false); 
+  // };
+
+  // const onScanFailure = (error: any) => {
+  //   // console.warn(`Code scan error = ${error}`);
+  //   // Don't toast on every failure, could be annoying.
+  // };
+
 
   const handleViewRawMaterialDetails = (item: RawMaterial) => {
     setSelectedRawMaterial(item);
@@ -42,11 +113,27 @@ export default function InventoryPage() {
     setIsScrapWasteDialogOpen(true);
   };
 
+  const openQrScanner = (mode: 'entry' | 'dispatch') => {
+    setQrScannerMode(mode);
+    setIsQrScannerOpen(true);
+  };
+  
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Inventory Management</h1>
-        <p className="text-muted-foreground">Track raw materials, finished goods, and waste/scrap.</p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Inventory Management</h1>
+          <p className="text-muted-foreground">Track raw materials, finished goods, and waste/scrap.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => openQrScanner('entry')} variant="outline">
+            <QrCode className="mr-2 h-4 w-4" /> Scan Raw Material Entry
+          </Button>
+          <Button onClick={() => openQrScanner('dispatch')} variant="outline">
+            <ScanLine className="mr-2 h-4 w-4" /> Scan Dispatch Log
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="raw-materials" className="w-full">
@@ -80,7 +167,7 @@ export default function InventoryPage() {
                     const stockPercentage = (item.currentStock / (item.reorderLevel * 1.5)) * 100; 
                     const needsReorder = item.currentStock < item.reorderLevel;
                     return (
-                    <TableRow key={item.id} className={needsReorder ? "bg-destructive/10" : ""}>
+                    <TableRow key={item.id} className={needsReorder ? "bg-destructive/10 hover:bg-destructive/20" : ""}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.category}</TableCell>
                       <TableCell className="text-right">{item.currentStock.toLocaleString()}</TableCell>
@@ -88,26 +175,26 @@ export default function InventoryPage() {
                       <TableCell>{item.unit}</TableCell>
                       <TableCell className="text-center">
                         <div className="flex flex-col items-center">
-                           <Progress value={Math.min(stockPercentage, 100)} className="h-2 w-24 mb-1" />
+                           <Progress value={Math.min(stockPercentage, 100)} className="h-2 w-24 mb-1" indicatorClassName={needsReorder ? "bg-destructive" : stockPercentage < 30 ? "bg-yellow-500" : "bg-primary"}/>
                           {needsReorder && (
                             <Badge variant="destructive" className="mt-1">
                               <AlertTriangle className="mr-1 h-3 w-3" /> Reorder
                             </Badge>
                           )}
                            {!needsReorder && item.currentStock <= item.reorderLevel * 1.2 && (
-                            <Badge variant="outline" className="mt-1 border-yellow-500 text-yellow-600">
+                            <Badge variant="outline" className="mt-1 border-yellow-500 text-yellow-600 dark:border-yellow-400 dark:text-yellow-400">
                                Low
                             </Badge>
                           )}
                            {!needsReorder && item.currentStock > item.reorderLevel * 1.2 && (
-                            <Badge variant="outline" className="mt-1 border-green-500 text-green-600">
+                            <Badge variant="outline" className="mt-1 border-green-600 text-green-700 dark:border-green-500 dark:text-green-500">
                                Good
                             </Badge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => handleViewRawMaterialDetails(item)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleViewRawMaterialDetails(item)} className="hover:bg-accent/50">
                           <Eye className="mr-2 h-4 w-4" /> Details
                         </Button>
                       </TableCell>
@@ -141,12 +228,12 @@ export default function InventoryPage() {
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell className="text-right">{item.quantity.toLocaleString()} units</TableCell>
                       <TableCell>
-                        <Badge variant={item.status === 'Ready for Dispatch' ? 'default' : 'secondary'} className={item.status === 'Ready for Dispatch' ? 'bg-green-500 text-white' : ''}>
+                        <Badge variant={item.status === 'Ready for Dispatch' ? 'default' : 'secondary'} className={item.status === 'Ready for Dispatch' ? 'bg-green-600 text-primary-foreground hover:bg-green-700' : item.status === 'Awaiting QC' ? 'bg-yellow-500 text-primary-foreground hover:bg-yellow-600' : ''}>
                           {item.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => handleManageFinishedGood(item)}>Manage</Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleManageFinishedGood(item)} className="hover:bg-accent/50">Manage</Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -183,7 +270,7 @@ export default function InventoryPage() {
                       <TableCell>{item.unit}</TableCell>
                       <TableCell>{item.reason}</TableCell>
                        <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => handleViewScrapWasteLog(item)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleViewScrapWasteLog(item)} className="hover:bg-accent/50">
                           <Eye className="mr-2 h-4 w-4" /> View Log
                         </Button>
                       </TableCell>
@@ -195,6 +282,55 @@ export default function InventoryPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* QR Scanner Dialog */}
+      <Dialog open={isQrScannerOpen} onOpenChange={setIsQrScannerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="text-primary" /> QR Code Scanner
+            </DialogTitle>
+            <DialogDescription>
+              {qrScannerMode === 'entry' ? 'Scan QR code for raw material entry.' : 'Scan QR code for dispatch logging.'}
+              Point your camera at a QR code.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="my-4 relative aspect-video bg-muted rounded-md overflow-hidden flex items-center justify-center">
+             <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+            {hasCameraPermission === false && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 p-4 text-center">
+                <VideoOff className="h-12 w-12 text-destructive mb-2" />
+                <p className="font-semibold">Camera Access Denied</p>
+                <p className="text-sm text-muted-foreground">Please enable camera permissions in your browser settings.</p>
+              </div>
+            )}
+            {hasCameraPermission === null && (
+               <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 p-4 text-center">
+                <p>Requesting camera access...</p>
+              </div>
+            )}
+             {hasCameraPermission === true && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-3/4 max-w-[250px] aspect-square border-4 border-primary/70 rounded-lg animate-pulse shadow-lg"></div>
+                </div>
+            )}
+            {/* Placeholder for actual QR reader UI element, e.g. <div id="qr-reader" className="w-full"></div> */}
+          </div>
+           {hasCameraPermission === false && (
+             <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Camera Access Required</AlertTitle>
+                <AlertDescription>
+                  QR scanning requires camera access. Please update your browser permissions.
+                </AlertDescription>
+              </Alert>
+           )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsQrScannerOpen(false)}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* Raw Material Details Dialog */}
       {selectedRawMaterial && (
@@ -252,7 +388,7 @@ export default function InventoryPage() {
               </div>
               <div className="grid grid-cols-2 items-center gap-4">
                 <Label>Status:</Label>
-                <Badge variant={selectedFinishedGood.status === 'Ready for Dispatch' ? 'default' : 'secondary'} className={selectedFinishedGood.status === 'Ready for Dispatch' ? 'bg-green-500 text-white' : ''}>
+                <Badge variant={selectedFinishedGood.status === 'Ready for Dispatch' ? 'default' : 'secondary'} className={selectedFinishedGood.status === 'Ready for Dispatch' ? 'bg-green-600 text-primary-foreground' : selectedFinishedGood.status === 'Awaiting QC' ? 'bg-yellow-500 text-primary-foreground' : ''}>
                   {selectedFinishedGood.status}
                 </Badge>
               </div>
