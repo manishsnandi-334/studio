@@ -1,3 +1,4 @@
+
 import { BarChart3, TrendingUp, Percent, Download, Package, AlertTriangle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +41,10 @@ const chartConfig = {
 
 
 export default function AnalyticsPage() {
+  const averageDailyOutputFromChart = Math.round(
+    dailyOutputData.reduce((sum, item) => sum + item.output, 0) / dailyOutputData.length
+  );
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
@@ -67,9 +72,9 @@ export default function AnalyticsPage() {
         />
         <DataCard
           title="Daily Output (Avg)"
-          value={`${MOCK_KPIS.dailyOutputUnits.toLocaleString()} units`}
+          value={`${averageDailyOutputFromChart.toLocaleString()} units`}
           icon={Package}
-          description={`Target: ${(MOCK_KPIS.dailyOutputUnits * 1.1).toLocaleString()} units`} // Example target
+          description={`Target: ${(Math.round(averageDailyOutputFromChart * 1.1)).toLocaleString()} units`}
         />
       </div>
       
