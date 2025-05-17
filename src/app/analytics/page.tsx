@@ -1,6 +1,7 @@
 
 "use client";
 
+import * as React from 'react'; // Added React import
 import { useRef } from 'react';
 import { TrendingUp, Percent, Download, Package, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -15,9 +16,9 @@ import { useToast } from "@/hooks/use-toast";
 
 
 const dailyOutputData = MOCK_HOURLY_OUTPUT.map(item => ({
-  date: item.time.split('-')[0].slice(0,3),
+  date: item.time.split('-')[0].slice(0,3), // Using first 3 chars for day name
   output: item.totalOutput
-})).slice(0, 6);
+})).slice(0, MOCK_HOURLY_OUTPUT.length > 7 ? 7 : MOCK_HOURLY_OUTPUT.length); // Show up to 7 days
 
 const kpiChartData = [
   { name: "On-Time Delivery", value: MOCK_KPIS.onTimeDelivery, fill: "hsl(var(--chart-1))" },
@@ -41,7 +42,7 @@ export default function AnalyticsPage() {
   const reportContentRef = useRef<HTMLDivElement>(null);
 
   const averageDailyOutputFromChart = Math.round(
-    dailyOutputData.reduce((sum, item) => sum + item.output, 0) / dailyOutputData.length
+    dailyOutputData.reduce((sum, item) => sum + item.output, 0) / (dailyOutputData.length || 1)
   );
 
   const handleDownloadPdf = async () => {
@@ -64,6 +65,7 @@ export default function AnalyticsPage() {
         scale: 2, // Improve quality
         useCORS: true, // For external images if any
         logging: false,
+        backgroundColor: null, // Use element's background
       });
       const imgData = canvas.toDataURL('image/png');
       
@@ -114,7 +116,7 @@ export default function AnalyticsPage() {
         </Button>
       </div>
 
-      <div ref={reportContentRef} className="flex flex-col gap-8"> {/* Content to be captured */}
+      <div ref={reportContentRef} className="flex flex-col gap-8 bg-background p-4 rounded-lg"> {/* Content to be captured, added bg and padding */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <DataCard
             title="On-Time Delivery"
@@ -132,7 +134,7 @@ export default function AnalyticsPage() {
             title="Daily Output (Avg)"
             value={`${averageDailyOutputFromChart.toLocaleString()} units`}
             icon={Package}
-            description={`Target: ${(Math.round(averageDailyOutputFromChart * 1.1)).toLocaleString()} units`}
+            description={`Avg from displayed chart. Target: ${(Math.round(averageDailyOutputFromChart * 1.1)).toLocaleString()} units`}
           />
         </div>
         
