@@ -46,9 +46,22 @@ export const NAV_ITEMS: NavItem[] = [
     icon: BarChart3,
     segment: 'analytics',
   },
+  // Example: Add profile link if user is authenticated
+  // This would typically be handled by auth context
+  // {
+  //   href: '/profile',
+  //   label: 'Profile',
+  //   icon: UserCircle, // You'd need to import UserCircle from lucide-react
+  //   segment: 'profile',
+  // },
 ];
 
 export const APP_NAME = "Udyog Sahayak";
+
+// User Roles
+export type UserRole = 'Admin' | 'Supervisor' | 'Worker' | 'Client';
+export const USER_ROLES: UserRole[] = ['Admin', 'Supervisor', 'Worker', 'Client'];
+
 
 // Mock Data (expand as needed)
 export const MOCK_PRODUCTION_LINES = [
@@ -114,3 +127,5 @@ export const MOCK_KPIS = {
   machineUtilization: 78, // percentage
   laborEfficiency: 89, // percentage
 };
+
+    
